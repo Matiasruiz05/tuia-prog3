@@ -27,7 +27,6 @@ class DepthFirstSearch:
         frontier = StackFrontier()
         frontier.add(node)
 
-        i = 0
 
         if node.state == grid.end:
             return Solution(node , explored)    
@@ -36,14 +35,8 @@ class DepthFirstSearch:
 
             node = frontier.remove()
 
-            if i:
-                if node.state in explored.keys():
-                    continue
-            
-            i = 1
-
             for accion , estado in grid.get_neighbours(node.state).items() :                                #iteramos los estados a los que podemos llegar con sus respectivas acciones
-                if estado not in explored :
+                if estado not in explored.keys() :
 
 
                     N = Node( "" , estado , node.cost + grid.get_cost(estado) , node , accion)    #Si un estado destino no está en explorados creamos un nodo con el respectivo estado
