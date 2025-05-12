@@ -41,9 +41,54 @@ from typing import TypeVar
 from random import shuffle
 from networkx import Graph
 
+
 State = TypeVar('State')
 Action = TypeVar('Action')
 
+
+class colaTabu:
+    def __init__(self):
+        """Inicializa una cola vacía usando una lista de tuplas."""
+        self.cola = []
+        self.lenght = 0
+    
+    def encolar(self, nuevo):
+        """
+        Añade un elemento a la cola.
+        """
+        self.cola.append(nuevo)
+        self.lenght += 1
+        if self.is_full():
+            self.desencolar()
+    
+    def desencolar(self):
+        """
+        Elimina y devuelve el elemento al frente de la cola.
+        """
+        if self.is_empty():
+            return
+        return self.cola.pop(0)
+    
+    def is_empty(self):
+        """
+        Verifica si la cola está vacía.
+        :return: True si la cola está vacía, False en caso contrario.
+        """
+        return self.lenght == 0
+    
+    def is_full(self):
+        """
+        Verifica si es momento de sacar un elemento de la lista tabú
+        """
+        return self.lenght == 10
+    
+    def is_here(self, action: tuple[int, int]):
+        """
+        Verifica si una acción está en la lista tabú
+        Devuelve True si está dentro y False si no lo está
+        """
+
+        return action in self.cola
 
 class OptProblem:
     """Clase que representa un problema de optimizacion general (de maximización)."""
@@ -70,6 +115,15 @@ class OptProblem:
         La idea es que este metodo este optimizado y sea mas eficiente que generar cada
         estado sucesor por separado y calcular su valor objetivo con self.obj_val().
         """
+        raise NotImplementedError
+
+    def max_actionTabu(self, state: State) -> tuple[Action, float]:
+        """Determina la accion que genera el sucesor con mayor valor objetivo para un estado dado. Está optimizada para búsqueda tabú
+
+        La idea es que este metodo este optimizado y sea mas eficiente que generar cada
+        estado sucesor por separado y calcular su valor objetivo con self.obj_val().
+        """
+
         raise NotImplementedError
 
     def random_reset(self) -> State:
@@ -196,6 +250,47 @@ class TSP(OptProblem):
             if succ_value > max_val:
                 max_act = a
                 max_val = succ_value
+        return max_act, max_val
+    
+
+    #Defino un método específico optimizado para búsqueda Tabú
+    def max_actionTabu(self, state: list[int], tabu: colaTabu) -> tuple[tuple[int, int], float]:
+        """Determina la accion que genera el sucesor con mayor valor objetivo para un estado dado siempre y cuando no forme parte de la lista tabu
+        
+        Se encuentra optimizada y por razones de eficiencia no se generan los sucesores y 
+        tampoco se llama a self.obj_val().
+
+        Argumentos:
+        ==========
+        state: list[int]
+            un estado
+
+        Retorno:
+        =======
+        max_act: tuple[int, int]
+            accion que genera el sucesor con mayor valor objetivo
+        max_val: float
+            valor objetivo del sucesor que resulta de aplicar min_act
+        """
+        value = self.obj_val(state) #Saca el valor del estado actual
+        max_act = None # Inicializa la mejor acción posible
+        max_val = float("-inf")
+        for a in self.actions(state): # Itera entre la lista de acciones posibles
+            i, j = a
+            v1 = state[i]+1  # origen de i
+            v2 = state[i+1]+1  # destino de i
+            v3 = state[j]+1  # origen de j
+            v4 = state[j+1]+1  # destino de j
+            distl1l2 = self.G.get_edge_data(v1, v2)['weight']
+            distl3l4 = self.G.get_edge_data(v3, v4)['weight']
+            distl1l3 = self.G.get_edge_data(v1, v3)['weight']
+            distl2l4 = self.G.get_edge_data(v2, v4)['weight']
+            succ_value =  value + distl1l2 + distl3l4 - distl1l3 - distl2l4 # Crea un posible valor sucesivo
+            if not tabu.is_here(a) and succ_value > max_val : # Evalua el valor sucesivo comparandolo con los que ya pasaron por el bucle y ADEMÁS, si no está en la lista tabú
+                max_act = a
+                max_val = succ_value
+        # Una vez terminado el bucle, añadimos este nuevo estado a la lista tabu. Añadimos esta acción porque en este modelo, es la misma accion que desharía lo hecho en el futuro
+        tabu.encolar(max_act)        
         return max_act, max_val
 
     def random_reset(self) -> list[int]:
